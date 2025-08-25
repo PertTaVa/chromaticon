@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CHROMATICON - colour analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+</head>
+<body>
+    <header class="header">
+        <img src="{{ url_for('static', filename='images/chromaticon_logo_1.png') }}" alt="Chromaticon Logo" class="logo" />
+        <h1>CHROMATICON</h1>
+        <div class="controls">
+            <button id="theme-toggle" title="Toggle light/dark theme"><i class="fa-solid fa-moon"></i></button>
+            <select id="language-select" aria-label="Select language">
+                <option value="fi">Suomi</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+    </header>
+
+    <main class="container">
+        <p id="description">CHROMATICON - tekstivärianalyysi kulttuurin puitteissa. Analysoi tekstin värien kulttuurilliset merkitykset. Kirjoita tai liitä teksti alle.</p>
+
+        <textarea id="text-input" placeholder="Kirjoita tai liitä teksti tähän..."></textarea>
+        <button id="analyze-btn">Analysoi</button>
+
+        <div id="result" class="result"></div>
+    </main>
+
+    <script>
+        const translations = {
+            en: {
+                description: "Textual color analysis in a cultural context. Analyze cultural meanings of colors in your text. Type or paste your text below.",
+                placeholder: "Type or paste your text here...",
+                analyzeBtn: "Analyze",
+                noTextAlert: "Please enter some text!",
+                noColorsFound: "No color found in text.",
+                analysisTitle: "🎨 Analysis Result:",
+                toggleThemeTitle: "Toggle light/dark theme",
+                languageLabel: "Select language"
+            },
+            fi: {
+                description: "Tekstivärianalyysi kulttuurin puitteissa. Analysoi tekstin värien kulttuurilliset merkitykset. Kirjoita tai liitä teksti alle.",
+                placeholder: "Kirjoita tai liitä teksti tähän...",
+                analyzeBtn: "Analysoi",
+                noTextAlert: "Ole hyvä ja kirjoita teksti!",
+                noColorsFound: "Tekstistä ei löytynyt värejä.",
+                analysisTitle: "🎨 Analyysin tulos:",
+                toggleThemeTitle: "Vaihda vaalea/pimeä teema",
+                languageLabel: "Valitse kieli"
+            }
+        };
+
+        const langSelect = document.getElementById('language-select');
+        const descriptionP = document.getElementById('description');
+        const textInput = document.getElementById('text-input');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const themeToggle = document.getElementById('theme-toggle');
+        const resultDiv = document.getElementById('result');
+
+        function updateLanguage() {
+            const lang = langSelect.value;
+            descriptionP.textContent = translations[lang].description;
+            textInput.placeholder = translations[lang].placeholder;
+            analyzeBtn.textContent = translations[lang].analyzeBtn;
+            themeToggle.title = translations[lang].toggleThemeTitle;
+            langSelect.setAttribute('aria-label', translations[lang].languageLabel);
+        }
+
+        langSelect.addEventListener('change', updateLanguage);
+
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-theme');
+            const icon = themeToggle.querySelector('i');
+            if(document.body.classList.contains('dark-theme')) {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            }
+        });
+
+        analyzeBtn.addEventListener('click', async () => {
+            const text = textInput.value.trim();
+            if (!text) {
+                alert(translations[langSelect.value].noTextAlert);
+                return;
+            }
+
+            const response = await fetch('/analyze', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({text})
+            });
+
+            const data = await response.json();
+            if (data.colors_found) {
+                let html = `<h2>${translations[langSelect.value].analysisTitle}</h2>`;
+                for (const [color, explanations] of Object.entries(data.colors_found)) {
+                    html += `<div class="color-card" style="border-left: 6px solid ${color};">
+                        <h3 style="color:${color}">${color.charAt(0).toUpperCase() + color.slice(1)}</h3>`;
+                    for (const [culture, meaning] of Object.entries(explanations)) {
+                        html += `<p><strong>${culture.charAt(0).toUpperCase() + culture.slice(1)}:</strong> ${meaning}</p>`;
+                    }
+                    html += `</div>`;
+                }
+                resultDiv.innerHTML = html;
+            } else {
+                resultDiv.innerHTML = `<p>${data.message || translations[langSelect.value].noColorsFound}</p>`;
+            }
+        });
+
+        // Initialize page language
+        updateLanguage();
+    </script>
+</body>
+</html>
